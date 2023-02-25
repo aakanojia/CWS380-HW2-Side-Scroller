@@ -547,6 +547,25 @@ export default class HW2Scene extends Scene {
 	 */
 	protected spawnBubble(): void {
 		// TODO spawn bubbles!
+		let newBubble: Graphic = this.bubbles.find((bubble: Graphic) => {return !bubble.visible});
+		if(!newBubble){return;}
+		// Generate bubbles
+		newBubble.visible = true;
+
+		// Extract the size of the viewport
+		let paddedViewportSize = this.viewport.getHalfSize().scaled(2).add(this.worldPadding);
+		let viewportSize = this.viewport.getHalfSize().scaled(2);
+
+		//Loop on position until we're clear of the player
+		newBubble.position.copy(RandUtils.randVec(viewportSize.x, paddedViewportSize.x - viewportSize.x, paddedViewportSize.y, viewportSize.y));
+		while(newBubble.position.distanceTo(this.player.position) < 100){
+			newBubble.position.copy(RandUtils.randVec(paddedViewportSize.x, paddedViewportSize.x, paddedViewportSize.y - viewportSize.y, viewportSize.y));
+		}
+
+		newBubble.setAIActive(true, {});
+
+		//Start the bubble spawn timer
+		this.bubbleSpawnTimer.start(100);
 	}
 	/**
 	 * This function takes in a GameNode that may be out of bounds of the viewport and
@@ -593,6 +612,9 @@ export default class HW2Scene extends Scene {
 	 */
 	public handleScreenDespawn(node: CanvasNode): void {
         // TODO - despawn the game nodes when they move out of the padded viewport
+		if(node.position.y<0 || node.position.x<0){
+			node.visible = false;
+		}
 	}
 
 	/** Methods for updating the UI */
@@ -744,8 +766,15 @@ export default class HW2Scene extends Scene {
 	 * an AABB and a Circle
 	 */
 	public handleBubblePlayerCollisions(): number {
-		// TODO check for collisions between the player and the bubbles
-        return;
+		let numCollisions = 0;
+		for (let bubble of this.bubbles) {
+			if (bubble.visible && HW2Scene.checkAABBtoCircleCollision(this.player.collisionShape.getBoundingRect(), bubble.collisionShape as Circle)) {
+				// Increase the player's air supply
+				this.emitter.fireEvent(HW2Events.PLAYER_BUBBLE_COLLISION, { bubbleId: bubble.id });
+				numCollisions++;
+			}
+		}
+		return numCollisions;
 	}
 
 	/**
@@ -818,8 +847,30 @@ export default class HW2Scene extends Scene {
 	 * @see MathUtils for more information about MathUtil functions
 	 */
 	public static checkAABBtoCircleCollision(aabb: AABB, circle: Circle): boolean {
-        // TODO implement collision detection for AABBs and Circles
-        return;
+		const overlapArea = aabb.overlapArea(circle.getBoundingRect());
+
+		if (overlapArea === 0) {
+			return false;
+		}
+	
+		const circleRadius = circle.radius;
+		const aabbHalfWidth = aabb.halfSize.x;
+		const aabbHalfHeight = aabb.halfSize.y;
+		const aabbOuterRadius = Math.sqrt(Math.pow(aabbHalfWidth, 2) + Math.pow(aabbHalfHeight, 2));
+		const distanceBetweenCenters = aabb.center.distanceTo(circle.center);
+	
+		if (distanceBetweenCenters > aabbOuterRadius + circleRadius) {
+			return false;
+		}
+	
+		if (distanceBetweenCenters < Math.min(aabbHalfWidth, aabbHalfHeight)) {
+			return true;
+		}
+	
+		const directionToCircle = circle.center.sub(aabb.center).normalize();
+		const outerPoint = circle.center.add(new Vec2(circle.radius, circle.radius)).mult(directionToCircle);
+	
+		return aabb.containsPoint(outerPoint);
 	}
 
     /** Methods for locking and wrapping nodes */

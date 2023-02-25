@@ -41,9 +41,16 @@ export default class PlayerController implements AI {
     private minCharge: number;
 
 	/** A timer for charging the player's laser cannon thing */
-	private hyperArmor: boolean;
+	
 	private laserTimer: Timer;
+
+	/** A timer for invincble hyper armor for the player */
+	private hyperArmor: boolean;
+	private getair: boolean;
+
+	/** Timers for player receiving damage or air */
 	private damageTimer: Timer;
+	private bubbleTimer: Timer;
 
 	// A receiver and emitter to hook into the event queue
 	private receiver: Receiver;
@@ -62,11 +69,14 @@ export default class PlayerController implements AI {
 		this.emitter = new Emitter();
 
 		this.hyperArmor = false;
+		this.getair = false;
 		this.laserTimer = new Timer(2500, this.handleLaserTimerEnd, false);
 		this.damageTimer = new Timer(100, this.handleDamageTimerEnd, false);
+		this.bubbleTimer = new Timer(50, this.handleBubbleTimerEnd, false);
 		
 		this.receiver.subscribe(HW2Events.SHOOT_LASER);
 		this.receiver.subscribe(HW2Events.PLAYER_MINE_COLLISION);
+		this.receiver.subscribe(HW2Events.PLAYER_BUBBLE_COLLISION);
 		this.receiver.subscribe(HW2Events.DEAD);
 
 		this.activate(options);
@@ -163,13 +173,18 @@ export default class PlayerController implements AI {
 	public handleEvent(event: GameEvent): void {
 		switch(event.type) {
 			case HW2Events.SHOOT_LASER: {
-				console.log("shoot")
+				console.log("Shoot")
 				this.handleShootLaserEvent(event);
 				break;
 			}
 			case HW2Events.PLAYER_MINE_COLLISION: {
-				console.log("Hit")
+				console.log("Hit mine")
 				this.handlePlayerMineCollision();
+				break;
+			}
+			case HW2Events.PLAYER_BUBBLE_COLLISION: {
+				console.log("Collect Bubble")
+				this.handlePlayerBubbleCollision();
 				break;
 			}
 			case HW2Events.DEAD: {
@@ -220,12 +235,23 @@ export default class PlayerController implements AI {
 		}
 	}
 
+	protected handleBubbleTimerEnd = () => {
+		this.getair = false;
+	}
+
 	protected handlePlayerMineCollision = () => {
 		if(this.hyperArmor) {return;}
 		this.hyperArmor = true;
 		this.currentHealth = this.currentHealth - 1;
 		this.owner.animation.playIfNotAlready(PlayerAnimations.HIT);
 		this.damageTimer.start();
+	}
+
+	protected handlePlayerBubbleCollision = () => {
+		if(this.getair) {return;}
+		this.currentAir = Math.min(this.currentAir + 2, 20);
+		this.getair = true;
+		this.bubbleTimer.start();
 	}
 
 	protected handlePlayerDeath = () => {
