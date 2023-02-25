@@ -64,6 +64,8 @@ export default class HW2Scene extends Scene {
 
     // A flag to indicate whether or not this scene is being recorded
     private recording: boolean;
+	private recorder: BasicRecording;
+
     // The seed that should be set before the game starts
     private seed: string;
 
@@ -116,6 +118,7 @@ export default class HW2Scene extends Scene {
 	public override initScene(options: Record<string, any>): void {
 		this.seed = options.seed === undefined ? RandUtils.randomSeed() : options.seed;
         this.recording = options.recording === undefined ? false : options.recording; 
+		RandUtils.seed = this.seed;
 	}
 	/**
 	 * @see Scene.loadScene()
@@ -161,6 +164,8 @@ export default class HW2Scene extends Scene {
 		this.initUI();
 		// Initialize object pools
 		this.initObjectPools();
+		// Initialize game recorder
+		this.initRecording();
 
 		// Subscribe to player events
 		this.receiver.subscribe(HW2Events.CHARGE_CHANGE);
@@ -229,6 +234,7 @@ export default class HW2Scene extends Scene {
 			}
 			case HW2Events.DEAD: {
 				this.gameOverTimer.start();
+				this.emitter.fireEvent(GameEventType.STOP_RECORDING, {});
 				break;
 			}
 			case HW2Events.CHARGE_CHANGE: {
@@ -240,6 +246,9 @@ export default class HW2Scene extends Scene {
 				break;
 			}
 			case HW2Events.PLAYER_MINE_COLLISION: {
+				break;
+			}
+			case HW2Events.PLAYER_BUBBLE_COLLISION: {
 				break;
 			}
 			case HW2Events.UPDATE_GUI: {
@@ -255,6 +264,13 @@ export default class HW2Scene extends Scene {
 	}
 
 	/** Initialization methods */
+	// This method initializes the recording.
+	protected initRecording(): void {
+		if(this.recording){
+			this.recorder = new BasicRecording(HW2Scene, {seed: this.seed})
+			this.emitter.fireEvent(GameEventType.START_RECORDING, {recording: this.recorder});
+		}
+	}
 
 	/** 
 	 * This method initializes the player.
