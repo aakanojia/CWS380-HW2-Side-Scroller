@@ -28,6 +28,7 @@ export default class PlayerController implements AI {
     private currentHealth: number;
     private maxHealth: number;
     private minHealth: number;
+	private playerDead: boolean;
 
     private currentAir: number;
     private maxAir: number;
@@ -40,7 +41,9 @@ export default class PlayerController implements AI {
     private minCharge: number;
 
 	/** A timer for charging the player's laser cannon thing */
+	private hyperArmor: boolean;
 	private laserTimer: Timer;
+	private damageTimer: Timer;
 
 	// A receiver and emitter to hook into the event queue
 	private receiver: Receiver;
@@ -58,9 +61,13 @@ export default class PlayerController implements AI {
 		this.receiver = new Receiver();
 		this.emitter = new Emitter();
 
+		this.hyperArmor = false;
 		this.laserTimer = new Timer(2500, this.handleLaserTimerEnd, false);
+		this.damageTimer = new Timer(100, this.handleDamageTimerEnd, false);
 		
 		this.receiver.subscribe(HW2Events.SHOOT_LASER);
+		this.receiver.subscribe(HW2Events.PLAYER_MINE_COLLISION);
+		this.receiver.subscribe(HW2Events.DEAD);
 
 		this.activate(options);
 	}
@@ -116,7 +123,10 @@ export default class PlayerController implements AI {
 
         // If the player is out of hp - play the death animation
 		if (this.currentHealth <= this.minHealth) { 
-            this.emitter.fireEvent(HW2Events.DEAD);
+			if (!this.playerDead) {
+				this.emitter.fireEvent(HW2Events.DEAD);
+				this.playerDead = true;
+			}
             return;
         }
 
@@ -140,6 +150,7 @@ export default class PlayerController implements AI {
 
 		// If the player is out of air - start subtracting from the player's health
 		this.currentHealth = this.currentAir <= this.minAir ? MathUtils.clamp(this.currentHealth - deltaT*2, this.minHealth, this.maxHealth) : this.currentHealth;
+		this.emitter.fireEvent(HW2Events.UPDATE_GUI, {currentHealth: this.currentHealth, maxHealth: this.maxHealth, currentAir: this.currentAir, maxAir: this.maxAir})
 	}
 	/**
 	 * This method handles all events that the reciever for the PlayerController is
@@ -152,7 +163,17 @@ export default class PlayerController implements AI {
 	public handleEvent(event: GameEvent): void {
 		switch(event.type) {
 			case HW2Events.SHOOT_LASER: {
+				console.log("shoot")
 				this.handleShootLaserEvent(event);
+				break;
+			}
+			case HW2Events.PLAYER_MINE_COLLISION: {
+				console.log("Hit")
+				this.handlePlayerMineCollision();
+				break;
+			}
+			case HW2Events.DEAD: {
+				this.handlePlayerDeath();
 				break;
 			}
 			default: {
@@ -190,6 +211,25 @@ export default class PlayerController implements AI {
 		if (this.currentCharge < this.maxCharge) {
 			this.laserTimer.start();
 		}
+	}
+
+	protected handleDamageTimerEnd = () => {
+		if(!this.playerDead) {
+			this.hyperArmor = false;
+			this.owner.animation.playIfNotAlready(PlayerAnimations.IDLE);
+		}
+	}
+
+	protected handlePlayerMineCollision = () => {
+		if(this.hyperArmor) {return;}
+		this.hyperArmor = true;
+		this.currentHealth = this.currentHealth - 1;
+		this.owner.animation.playIfNotAlready(PlayerAnimations.HIT);
+		this.damageTimer.start();
+	}
+
+	protected handlePlayerDeath = () => {
+		this.owner.animation.playIfNotAlready(PlayerAnimations.DEATH, false);
 	}
 
 } 
