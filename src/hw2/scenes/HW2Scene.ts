@@ -184,6 +184,10 @@ export default class HW2Scene extends Scene {
 		// Move the backgrounds
 		this.moveBackgrounds(deltaT);
 
+		// Wrap and Lock Player
+		this.wrapPlayer(this.player, this.viewport.getCenter(), this.viewport.getHalfSize());
+		this.lockPlayer(this.player, this.viewport.getCenter(), this.viewport.getHalfSize());
+
 		// Handles mine and bubble collisions
 		this.handleMinePlayerCollisions();
 		this.bubblesPopped += this.handleBubblePlayerCollisions();
@@ -920,7 +924,14 @@ export default class HW2Scene extends Scene {
 	 * 							X THIS IS OUT OF BOUNDS													
 	 */
 	protected wrapPlayer(player: CanvasNode, viewportCenter: Vec2, viewportHalfSize: Vec2): void {
-		// TODO wrap the player around the top/bottom of the screen
+		const top = viewportCenter.y - viewportHalfSize.y;
+		const bottom = viewportCenter.y + viewportHalfSize.y;
+	  
+		if (player.position.y < top) {
+		  player.position.y = 900;
+		} else if (player.position.y > bottom) {
+		  player.position.y = 0;
+		}
 	}
 
     /**
@@ -963,7 +974,14 @@ export default class HW2Scene extends Scene {
 	 * 
 	 */
 	protected lockPlayer(player: CanvasNode, viewportCenter: Vec2, viewportHalfSize: Vec2): void {
-		// TODO prevent the player from moving off the left/right side of the screen
+		const left = viewportCenter.x - viewportHalfSize.x;
+		const right = viewportCenter.x + viewportHalfSize.x;
+	  
+		if (player.boundary.left < left) {
+		  player.position.x = left + player.boundary.halfSize.x;
+		} else if (player.boundary.right > right) {
+		  player.position.x = right - player.boundary.halfSize.x;
+		}
 	}
 
 	public handleTimers(): void {

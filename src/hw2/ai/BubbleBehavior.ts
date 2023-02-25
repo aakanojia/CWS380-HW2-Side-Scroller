@@ -60,12 +60,7 @@ export default class BubbleBehavior implements AI {
     public handleEvent(event: GameEvent): void {
         switch(event.type) {
             case HW2Events.PLAYER_BUBBLE_COLLISION: {
-                console.log("yuh")
-                let id = event.data.get("id");
-                if(this.owner.id == id){
-                    this.owner.position.copy(Vec2.ZERO);
-                    this.owner.visible = false;
-                }
+                this.handlePlayerBubbleCollision(event);
                 break;
             }
             default: {
@@ -92,6 +87,13 @@ export default class BubbleBehavior implements AI {
         }
     }
     
+    protected handlePlayerBubbleCollision(event: GameEvent): void {
+        let id = event.data.get("id");
+        if(this.owner.id == id){
+            this.owner.position.copy(Vec2.ZERO);
+            this.owner.visible = false;
+        }
+    }
 }
 
 
